@@ -1,0 +1,3 @@
+# Optional local test and PDF report dependencies.
+-r app/requirements.txt
+reportlab>=4,<5

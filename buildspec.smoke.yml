@@ -1,0 +1,11 @@
+# Separate AWS CodeBuild project/action for a smoke test after staging ECS deploy.
+# Set STAGING_APP_URL to the public staging ALB URL (http://... for this lab).
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - set -e
+      - test -n "${STAGING_APP_URL:-}"
+      - curl --fail --silent --show-error --max-time 10 --retry 6 --retry-connrefused --retry-delay 3 "${STAGING_APP_URL%/}/health"
+      - echo "Staging health check passed."

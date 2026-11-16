@@ -1,0 +1,34 @@
+# Reference CodeBuild job. Enable privileged mode to allow Docker builds.
+# Set ECR_REPOSITORY_URI to an existing Mumbai ECR repository URI.
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - set -e
+      - test -n "${ECR_REPOSITORY_URI:-}"
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+      - echo "Logging in to ECR in ${AWS_DEFAULT_REGION}"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+      - SOURCE_SHORT=$(printf '%s' "${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}" | tr -cd '[:alnum:]_.-' | cut -c 1-12)
+      - IMAGE_TAG="${SOURCE_SHORT}-${CODEBUILD_BUILD_NUMBER:-0}"
+      - python3 -m pip install -r app/requirements.txt
+      - python3 -m unittest discover -s tests -v
+  build:
+    commands:
+      - docker build -t "${ECR_REPOSITORY_URI}:${IMAGE_TAG}" app/
+      - docker run -d --name logicworks-build-test -p 18080:8080 "${ECR_REPOSITORY_URI}:${IMAGE_TAG}"
+      - curl --fail --silent --show-error --retry 8 --retry-connrefused --retry-delay 2 http://localhost:18080/health
+      - docker rm -f logicworks-build-test
+  post_build:
+    commands:
+      - docker push "${ECR_REPOSITORY_URI}:${IMAGE_TAG}"
+      - IMAGE_DIGEST=$(aws ecr describe-images --region "$AWS_DEFAULT_REGION" --repository-name "${ECR_REPOSITORY_URI##*/}" --image-ids "imageTag=${IMAGE_TAG}" --query 'imageDetails[0].imageDigest' --output text)
+      - test -n "$IMAGE_DIGEST" && test "$IMAGE_DIGEST" != "None"
+      - printf '[{"name":"app","imageUri":"%s"}]\n' "${ECR_REPOSITORY_URI}@${IMAGE_DIGEST}" > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json

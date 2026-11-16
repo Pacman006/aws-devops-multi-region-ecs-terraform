@@ -1,0 +1,44 @@
+# Local Python files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.pytest_cache/
+
+# Credentials, Terraform plans, backend configuration, and state
+.aws/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+*.tfvars.json
+.terraform/
+.terraform.lock.hcl
+backend.hcl
+crash.log
+crash.*.log
+terraform.rc
+.terraformrc
+
+# Infrastructure and deployment output
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+*.zip
+*.jsonl
+imagedefinitions*.json
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Private deployment evidence. Review and redact before intentionally sharing.
+evidence/
